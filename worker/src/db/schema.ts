@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, index, uniqueIndex, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
+import { sqliteTable, text, integer, index, uniqueIndex, primaryKey, type AnySQLiteColumn } from 'drizzle-orm/sqlite-core'
 
 export const users = sqliteTable('users', {
   id:          integer('id').primaryKey({ autoIncrement: true }),
@@ -45,6 +45,40 @@ export const images = sqliteTable('images', {
   index('images_user').on(t.user_id),
 ])
 
+// Named sizes a user can apply to folders or single images, served as {stem}@{name}.{ext}.
+// The name and format are fixed once created, since both appear in every link.
+export const presets = sqliteTable('presets', {
+  id:         integer('id').primaryKey({ autoIncrement: true }),
+  user_id:    integer('user_id').notNull().references(() => users.id),
+  name:       text('name').notNull(),
+  width:      integer('width').notNull(),
+  // Null means width only, keeping the aspect ratio.
+  height:     integer('height'),
+  fit:        text('fit', { enum: ['inside', 'crop'] }).notNull(),
+  format:     text('format', { enum: ['keep', 'webp', 'jpeg'] }).notNull(),
+  // Applied automatically to newly created folders.
+  is_default: integer('is_default', { mode: 'boolean' }).notNull().default(false),
+  created_at: text('created_at').notNull(),
+  updated_at: text('updated_at').notNull(),
+}, (t) => [
+  uniqueIndex('presets_user_name').on(t.user_id, t.name),
+])
+
+export const folderPresets = sqliteTable('folder_presets', {
+  folder_id: integer('folder_id').notNull().references(() => folders.id, { onDelete: 'cascade' }),
+  preset_id: integer('preset_id').notNull().references(() => presets.id, { onDelete: 'cascade' }),
+}, (t) => [
+  primaryKey({ columns: [t.folder_id, t.preset_id] }),
+])
+
+export const imagePresets = sqliteTable('image_presets', {
+  image_id:  integer('image_id').notNull().references(() => images.id, { onDelete: 'cascade' }),
+  preset_id: integer('preset_id').notNull().references(() => presets.id, { onDelete: 'cascade' }),
+}, (t) => [
+  primaryKey({ columns: [t.image_id, t.preset_id] }),
+])
+
 export type User = typeof users.$inferSelect
 export type Folder = typeof folders.$inferSelect
 export type Image = typeof images.$inferSelect
+export type Preset = typeof presets.$inferSelect

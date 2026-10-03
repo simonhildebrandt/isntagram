@@ -1,5 +1,6 @@
 import { api } from './client'
 import type { ImageSummary } from './images'
+import type { Preset } from './presets'
 
 export interface FolderSummary {
   id: number
@@ -10,9 +11,11 @@ export interface FolderSummary {
   createdAt: string
   updatedAt: string
   coverUrls: string[]
+  presetNames: string[]
 }
 
 export interface FolderDetail extends FolderSummary {
+  presets: Preset[]
   images: ImageSummary[]
 }
 

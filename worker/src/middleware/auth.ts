@@ -22,16 +22,17 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
   }
 
   const db = getDb(c.env)
-  if (email === c.env.SEED_USER_EMAIL.toLowerCase()) {
+  let user = await db.query.users.findFirst({ where: eq(users.email, email) })
+  if (!user && email === c.env.SEED_USER_EMAIL.toLowerCase()) {
     await db.insert(users).values({
       email,
       quota_bytes: Number(c.env.SEED_QUOTA_BYTES),
       created_at: new Date().toISOString(),
     }).onConflictDoNothing()
+    user = await db.query.users.findFirst({ where: eq(users.email, email) })
   }
 
   // Sign-in is invite-only: anyone without a user row is turned away.
-  const user = await db.query.users.findFirst({ where: eq(users.email, email) })
   if (!user) return c.json({ error: 'not_invited' }, 403)
 
   c.set('user', user)

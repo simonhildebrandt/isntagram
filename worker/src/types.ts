@@ -4,6 +4,7 @@ export interface Env {
   DB: D1Database
   ASSETS: Fetcher
   BUCKET: R2Bucket
+  IMAGES: ImagesBinding
   APP_HOST: string
   SEED_USER_EMAIL: string
   SEED_QUOTA_BYTES: string

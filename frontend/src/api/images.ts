@@ -5,6 +5,8 @@ export interface ImageSummary {
   folderId: number
   name: string
   url: string
+  // Small WebP for grids and covers in the app.
+  thumbUrl: string
   contentType: string
   sizeBytes: number
   width: number
@@ -13,8 +15,18 @@ export interface ImageSummary {
   updatedAt: string
 }
 
+export interface ImageSize {
+  presetId: number
+  name: string
+  source: 'folder' | 'image'
+  url: string
+  width: number
+  height: number
+}
+
 export interface ImageDetail extends ImageSummary {
   folder: { id: number; name: string }
+  sizes: ImageSize[]
 }
 
 export interface ImageUpload {
@@ -50,4 +62,4 @@ export const search = (q: string) =>
 
 // For showing an image in the app: the version parameter skips a stale browser copy after the file
 // is replaced. Shared links never include it; the Worker ignores query strings.
-export const previewUrl = (image: Pick<ImageSummary, 'url' | 'updatedAt'>) => `${image.url}?v=${Date.parse(image.updatedAt)}`
+export const previewUrl = (image: Pick<ImageSummary, 'url' | 'updatedAt'>, url = image.url) => `${url}?v=${Date.parse(image.updatedAt)}`

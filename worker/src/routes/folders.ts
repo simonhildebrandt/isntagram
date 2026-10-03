@@ -1,11 +1,14 @@
 import { Hono } from 'hono'
 import { and, desc, eq, sql } from 'drizzle-orm'
 import { getDb } from '../db/client'
-import { folders, images, type Folder, type User } from '../db/schema'
+import { isUniqueViolation } from '../db/errors'
+import { folderPresets, folders, images, presets, type Folder, type User } from '../db/schema'
 import { freeFolderSlug, freeImageStem } from '../paths'
 import { getUsage } from '../quota'
 import { extensionFor, storeImage, UploadError } from '../storage'
-import { folderJson, imageJson, imageUrl } from '../serialize'
+import { folderJson, imageJson, thumbUrl } from '../serialize'
+import { setAppliedPresets } from '../presets'
+import { presetJson } from './presets'
 import type { AppEnv } from '../types'
 
 type Db = ReturnType<typeof getDb>
@@ -23,7 +26,7 @@ folderRoutes.get('/', async (c) => {
   const db = getDb(c.env)
   const protocol = new URL(c.req.url).protocol
 
-  const [rows, stats, covers] = await Promise.all([
+  const [rows, stats, covers, applied] = await Promise.all([
     db.select().from(folders).where(eq(folders.user_id, user.id)).orderBy(desc(folders.updated_at)),
     db.select({
       folderId: images.folder_id,
@@ -37,17 +40,24 @@ folderRoutes.get('/', async (c) => {
         from images where user_id = ?
       ) where n <= 3 order by folder_id, n
     `).bind(user.id).all<{ folder_id: number; link_handle: string; path_stem: string; ext: string }>(),
+    db.select({ folderId: folderPresets.folder_id, name: presets.name })
+      .from(folderPresets).innerJoin(presets, eq(presets.id, folderPresets.preset_id))
+      .where(eq(presets.user_id, user.id)).orderBy(presets.width),
   ])
 
   const statsById = new Map(stats.map(s => [s.folderId, s]))
   const coversById = new Map<number, string[]>()
   for (const row of covers.results) {
     const list = coversById.get(row.folder_id) ?? []
-    list.push(imageUrl(row, c.env.APP_HOST, protocol))
+    list.push(thumbUrl(row, c.env.APP_HOST, protocol))
     coversById.set(row.folder_id, list)
   }
+  const presetsById = new Map<number, string[]>()
+  for (const { folderId, name } of applied) presetsById.set(folderId, [...presetsById.get(folderId) ?? [], name])
 
-  return c.json(rows.map(f => folderJson(f, statsById.get(f.id) ?? { imageCount: 0, sizeBytes: 0 }, coversById.get(f.id) ?? [])))
+  return c.json(rows.map(f => folderJson(
+    f, statsById.get(f.id) ?? { imageCount: 0, sizeBytes: 0 }, coversById.get(f.id) ?? [], presetsById.get(f.id) ?? [],
+  )))
 })
 
 folderRoutes.post('/', async (c) => {
@@ -60,7 +70,11 @@ folderRoutes.post('/', async (c) => {
   const [folder] = await db.insert(folders).values({
     user_id: user.id, name: name.trim(), slug, created_at: now(), updated_at: now(),
   }).returning()
-  return c.json(folderJson(folder, { imageCount: 0, sizeBytes: 0 }, []), 201)
+
+  // New folders start with the user's default sizes.
+  const defaults = await db.select().from(presets).where(and(eq(presets.user_id, user.id), eq(presets.is_default, true)))
+  await setAppliedPresets(db, user.id, { folderId: folder.id }, defaults.map(p => p.id))
+  return c.json(folderJson(folder, { imageCount: 0, sizeBytes: 0 }, [], defaults.map(p => p.name)), 201)
 })
 
 folderRoutes.get('/:id', async (c) => {
@@ -69,12 +83,29 @@ folderRoutes.get('/:id', async (c) => {
   if (!folder) return c.json({ error: 'Folder not found.' }, 404)
 
   const protocol = new URL(c.req.url).protocol
-  const rows = await db.select().from(images).where(eq(images.folder_id, folder.id)).orderBy(desc(images.created_at))
+  const [rows, applied] = await Promise.all([
+    db.select().from(images).where(eq(images.folder_id, folder.id)).orderBy(desc(images.created_at)),
+    db.select({ preset: presets }).from(folderPresets).innerJoin(presets, eq(presets.id, folderPresets.preset_id))
+      .where(eq(folderPresets.folder_id, folder.id)).orderBy(presets.width),
+  ])
   const sizeBytes = rows.reduce((sum, i) => sum + i.size_bytes, 0)
   return c.json({
-    ...folderJson(folder, { imageCount: rows.length, sizeBytes }, []),
+    ...folderJson(folder, { imageCount: rows.length, sizeBytes }, [], applied.map(a => a.preset.name)),
+    presets: applied.map(a => presetJson(a.preset)),
     images: rows.map(i => imageJson(i, c.env.APP_HOST, protocol)),
   })
+})
+
+// Sets which sizes every image in the folder gets. Removing one makes its links stop working.
+folderRoutes.put('/:id/presets', async (c) => {
+  const user = c.get('user')
+  const db = getDb(c.env)
+  const folder = await ownedFolder(db, user, Number(c.req.param('id')))
+  if (!folder) return c.json({ error: 'Folder not found.' }, 404)
+
+  const { presetIds } = await c.req.json<{ presetIds?: unknown }>()
+  if (!Array.isArray(presetIds) || !presetIds.every(Number.isInteger)) return c.json({ error: 'Invalid sizes.' }, 400)
+  return c.json({ presetIds: await setAppliedPresets(db, user.id, { folderId: folder.id }, presetIds) })
 })
 
 // Renaming changes the path used for future uploads only; existing links keep their old path.
@@ -156,7 +187,7 @@ async function insertImage(db: Db, values: Omit<typeof images.$inferInsert, 'pat
       const [image] = await db.insert(images).values({ ...values, path_stem }).returning()
       return image
     } catch (e) {
-      if (attempt < 3 && String(e).includes('UNIQUE')) continue
+      if (attempt < 3 && isUniqueViolation(e)) continue
       throw e
     }
   }

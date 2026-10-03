@@ -15,6 +15,9 @@ import { useAuth } from '../providers/AuthProvider'
 import { IMAGE_ACCEPT, prepareImage } from '../imageFiles'
 import { formatBytes, formatDate } from '../format'
 import { useLoad } from '../useLoad'
+import { listPresets, setImagePresets } from '../api/presets'
+import { AddSizeMenu } from '../components/Sizes'
+import type { ImageSize } from '../api/images'
 
 const FORMATS: Record<string, string> = {
   'image/jpeg': 'JPEG', 'image/png': 'PNG', 'image/webp': 'WebP', 'image/gif': 'GIF', 'image/avif': 'AVIF',
@@ -23,6 +26,7 @@ const FORMATS: Record<string, string> = {
 export default function ImagePage() {
   const id = Number(useParams().id)
   const { data: image, error, reload } = useLoad(() => getImage(id), [id])
+  const { data: allPresets } = useLoad(listPresets, [])
   const { refresh } = useAuth()
   const navigate = useNavigate()
   const move = useDisclosure()
@@ -46,6 +50,17 @@ export default function ImagePage() {
       setActionError(errorMessage(err, err instanceof Error ? err.message : undefined))
     } finally {
       setReplacing(null)
+    }
+  }
+
+  const imageOnly = image.sizes.filter(s => s.source === 'image').map(s => s.presetId)
+  const setOwnSizes = async (presetIds: number[]) => {
+    setActionError(null)
+    try {
+      await setImagePresets(image.id, presetIds)
+      reload()
+    } catch (err) {
+      setActionError(errorMessage(err))
     }
   }
 
@@ -80,6 +95,17 @@ export default function ImagePage() {
               </HStack>
               <CopyField value={image.url} />
             </VStack>
+            {image.sizes.map(size => (
+              <SizeLink key={size.presetId} size={size} onRemove={size.source === 'image' ? () => setOwnSizes(imageOnly.filter(id => id !== size.presetId)) : undefined} />
+            ))}
+            <Flex px="14px" py="12px" borderTop="1px solid #f0f0f2" wrap="wrap" gap="6px" align="center">
+              <Text fontSize="12.5px" color="#52525b" mr="4px">Add for this image</Text>
+              <AddSizeMenu
+                label="+ Size"
+                available={allPresets?.filter(p => !image.sizes.some(s => s.presetId === p.id)) ?? []}
+                onAdd={p => setOwnSizes([...imageOnly, p.id])}
+              />
+            </Flex>
           </Panel>
           <HStack spacing={4} fontSize="13px">
             <Link color="brand.600" onClick={() => fileInput.current?.click()}>
@@ -153,5 +179,21 @@ function MoveDialog({ isOpen, onClose, currentFolderId, onMove }: {
         </ModalFooter>
       </ModalContent>
     </Modal>
+  )
+}
+
+function SizeLink({ size, onRemove }: { size: ImageSize; onRemove?: () => void }) {
+  return (
+    <VStack align="stretch" spacing="7px" px="14px" py="12px" borderTop="1px solid #f0f0f2">
+      <HStack spacing={2} align="baseline">
+        <Text fontFamily="mono" fontWeight={500} fontSize="13px">{size.name}</Text>
+        <Text fontSize="12.5px" color="#52525b">{size.width} × {size.height}</Text>
+        <Text ml="auto" fontSize="11.5px" color="#71717a">
+          {size.source === 'folder' ? 'From folder' : 'This image only'}
+          {onRemove && <> · <Link color="#c2410c" onClick={onRemove}>Remove</Link></>}
+        </Text>
+      </HStack>
+      <CopyField value={size.url} />
+    </VStack>
   )
 }

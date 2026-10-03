@@ -10,7 +10,7 @@ export function ImageGrid({ images }: { images: ImageSummary[] }) {
       {images.map(image => (
         <Box key={image.id} as={RouterLink} to={`/images/${image.id}`} display="flex" flexDirection="column" gap="6px" minW={0}>
           <Image
-            src={previewUrl(image)} alt={image.name} loading="lazy"
+            src={previewUrl(image, image.thumbUrl)} alt={image.name} loading="lazy"
             aspectRatio={4 / 3} objectFit="cover" borderRadius="10px" bg={placeholderBg} w="100%"
           />
           <Box px="2px" minW={0}>

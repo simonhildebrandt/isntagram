@@ -2,6 +2,9 @@ import { Box, Button, Flex, Heading, HStack, Text, VStack } from '@chakra-ui/rea
 import type { ReactNode } from 'react'
 import { useAuth, useMe } from '../providers/AuthProvider'
 import { formatBytes } from '../format'
+import { Link as RouterLink } from 'react-router-dom'
+import { listPresets } from '../api/presets'
+import { useLoad } from '../useLoad'
 
 function Row({ title, detail, children }: { title: string; detail: string; children: ReactNode }) {
   return (
@@ -18,6 +21,8 @@ function Row({ title, detail, children }: { title: string; detail: string; child
 export default function SettingsPage() {
   const me = useMe()
   const { logout } = useAuth()
+  const { data: presets } = useLoad(listPresets, [])
+  const defaults = presets?.filter(p => p.isDefault) ?? []
 
   return (
     <VStack align="stretch" spacing={5}>
@@ -30,6 +35,14 @@ export default function SettingsPage() {
           <Text fontFamily="mono" fontSize="13px" px={3} py={2} maxW="100%" overflowWrap="anywhere" border="1px solid #e6e6ea" borderRadius="8px" bg="#fafafa">
             {me.linkHost}
           </Text>
+        </Row>
+        <Row title="Default sizes for new folders" detail="Applied automatically when a folder is created">
+          <HStack spacing="6px" wrap="wrap">
+            {defaults.map(p => (
+              <Text key={p.id} fontFamily="mono" fontSize="12px" px="10px" py="4px" borderRadius="6px" bg="brand.50" color="brand.800">{p.name}</Text>
+            ))}
+            <Button as={RouterLink} to="/sizes" size="sm" variant="link" colorScheme="brand">{defaults.length ? 'Change' : 'Choose'}</Button>
+          </HStack>
         </Row>
         <Row
           title="Storage"

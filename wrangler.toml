@@ -23,6 +23,10 @@ run_worker_first   = true
 binding     = "BUCKET"
 bucket_name = "isntagram-originals"
 
+# Resizes originals on the fly for size presets.
+[images]
+binding = "IMAGES"
+
 [[d1_databases]]
 binding        = "DB"
 database_name  = "isntagram"

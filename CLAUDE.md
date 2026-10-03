@@ -18,7 +18,8 @@ Production routes are passed to `wrangler deploy` (see `worker/package.json`), n
 - Copy `.dev.vars.example` to `.dev.vars` and fill in `LOGIN_WITH_LINK_SECRET`. Restart `wrangler dev` after changing `.dev.vars`; it isn't reloaded while running. The frontend build reads `LWL_KEY` from the environment (`.envrc`, as in 1Gb).
 - `npm run db:generate` after changing `worker/src/db/schema.ts`, then `npm run db:migrate` to apply locally.
 - `npm run typecheck` checks both packages.
-- In the app, image previews add `?v={updatedAt}` to the URL (the Worker ignores query strings) so a replaced file isn't hidden by the browser cache. Folder covers and grids load originals until slice 3 adds a thumbnail preset.
+- In the app, image previews add `?v={updatedAt}` to the URL (the Worker ignores query strings) so a replaced file isn't hidden by the browser cache.
+- `wrangler dev` runs the Images binding locally (Miniflare bundles sharp), so resizing works offline.
 - To test the API without a real sign-in, sign a JWT with the `.dev.vars` secret: `{ email }` claim, HS256.
 
 # Workflow
@@ -26,7 +27,7 @@ Production routes are passed to `wrangler deploy` (see `worker/package.json`), n
 - **Build order:** work in slices, each one deployable and testable before starting the next:
   1. Project setup and sign-in (Login-With.Link, choosing a handle, invite-only check)
   2. Folders, uploads (images and zips) and serving originals on `{handle}.isntagram.au`
-  3. Size presets, scaled links and cache purging
+  3. Size presets, scaled links and edge caching
   4. Sponsorship: invites, allowances, removing sponsored users
 - **Wrangler:** don't run `wrangler` commands that touch the Cloudflare account (creating D1 databases or R2 buckets, applying remote migrations, setting secrets, deploying). Give Simon the exact commands to run. Local commands like `wrangler dev` and local migrations are fine.
 
@@ -47,7 +48,7 @@ Sizes are named presets that each user manages on the Sizes screen. A preset has
 - a fit: "fit inside" or "crop to fill"
 - an output format: keep the original, WebP or JPEG
 
-Presets are applied to folders or to single images. An image's sizes are its folder's presets plus any applied to the image itself, and folder presets also apply to images uploaded later. A setting chooses the default presets for new folders. New users start with `thumb` and `medium`. The Worker only serves presets that have been applied to an image, so arbitrary sizes can't be requested and each one billed as a transform. Images are never upscaled.
+A preset's name and format can't be changed after it's created, because both appear in every link to it (the format sets the extension); dimensions and fit can. Presets are applied to folders or to single images. An image's sizes are its folder's presets plus any applied to the image itself, and folder presets also apply to images uploaded later. A setting chooses the default presets for new folders. New users start with `thumb` and `medium`. The Worker only serves presets that have been applied to an image, so arbitrary sizes can't be requested and each one billed as a transform. Images are never upscaled (Cloudflare's `scale-down` and `crop` fits). The app's grids and folder covers use an internal `_grid` size (480 wide WebP), served for every image; user preset names can't start with `_`.
 
 # Sharing
 
@@ -62,7 +63,7 @@ A handle is chosen at sign-up and can't be changed. It must be a valid DNS label
 
 An image's full URL (handle and path) is assigned at upload and stored on the image, and it never changes, even if the image is moved, its folder is renamed, or it changes owner. Links are embedded elsewhere, so they must keep working. Filename clashes within a folder get a numeric suffix (`beach-2.jpg`).
 
-Image requests go through the Worker so it can check presets, and responses carry long cache headers. Deleting an image makes its URLs 404. Editing a preset, replacing a file, or deleting an image or folder purges the affected URLs through the Cloudflare cache purge API. This uses an API token with Zone → Cache Purge permission, stored as the Worker secret `CF_PURGE_TOKEN`.
+Every image request goes through the Worker, which looks the image up in D1 and checks the preset is applied. Deleting an image, or removing a size, makes those URLs 404 immediately. Resized images are kept in the edge cache (Cache API) under a key that includes the image's and the preset's `updated_at`, so replacing a file or editing a preset never serves a stale copy, and no cache purging is needed. Browsers may keep a copy for up to an hour (`max-age=3600`). Resized responses carry an ETag built from the same version, so a browser revalidating gets a 304 without a resize.
 
 # Sponsorship
 

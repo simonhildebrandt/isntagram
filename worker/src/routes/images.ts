@@ -4,7 +4,8 @@ import { getDb } from '../db/client'
 import { folders, images, type User } from '../db/schema'
 import { getUsage } from '../quota'
 import { storeImage, UploadError } from '../storage'
-import { imageJson } from '../serialize'
+import { imageJson, imageUrl } from '../serialize'
+import { outputSize, presetsForImage, setAppliedPresets } from '../presets'
 import { ownedFolder } from './folders'
 import type { AppEnv } from '../types'
 
@@ -23,11 +24,30 @@ imageRoutes.get('/:id', async (c) => {
   const image = await ownedImage(db, c.get('user'), Number(c.req.param('id')))
   if (!image) return c.json({ error: 'Image not found.' }, 404)
 
-  const folder = await db.query.folders.findFirst({ where: eq(folders.id, image.folder_id) })
+  const protocol = new URL(c.req.url).protocol
+  const [folder, applied] = await Promise.all([
+    db.query.folders.findFirst({ where: eq(folders.id, image.folder_id) }),
+    presetsForImage(db, image),
+  ])
   return c.json({
-    ...imageJson(image, c.env.APP_HOST, new URL(c.req.url).protocol),
+    ...imageJson(image, c.env.APP_HOST, protocol),
     folder: { id: folder!.id, name: folder!.name },
+    sizes: applied.map(p => ({
+      presetId: p.id, name: p.name, source: p.source, url: imageUrl(image, c.env.APP_HOST, protocol, p), ...outputSize(p, image),
+    })),
   })
+})
+
+// Sets the sizes applied to this image alone, on top of its folder's.
+imageRoutes.put('/:id/presets', async (c) => {
+  const user = c.get('user')
+  const db = getDb(c.env)
+  const image = await ownedImage(db, user, Number(c.req.param('id')))
+  if (!image) return c.json({ error: 'Image not found.' }, 404)
+
+  const { presetIds } = await c.req.json<{ presetIds?: unknown }>()
+  if (!Array.isArray(presetIds) || !presetIds.every(Number.isInteger)) return c.json({ error: 'Invalid sizes.' }, 400)
+  return c.json({ presetIds: await setAppliedPresets(db, user.id, { imageId: image.id }, presetIds) })
 })
 
 // Moving keeps the image's URL: paths are fixed at upload.

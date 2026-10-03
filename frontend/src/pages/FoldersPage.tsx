@@ -1,4 +1,4 @@
-import { Box, Button, Center, Grid, Image, Spinner, Text, useDisclosure, VStack } from '@chakra-ui/react'
+import { Box, Button, Center, Flex, Grid, Image, Spinner, Text, useDisclosure, VStack } from '@chakra-ui/react'
 import { Link as RouterLink, useNavigate } from 'react-router-dom'
 import { createFolder, listFolders, type FolderSummary } from '../api/folders'
 import { PageHeader } from '../components/PageHeader'
@@ -28,6 +28,13 @@ function FolderCard({ folder }: { folder: FolderSummary }) {
         <Text fontSize="12.5px" color="#52525b">
           {plural(folder.imageCount, 'image')} · {formatBytes(folder.sizeBytes)} · {timeAgo(folder.updatedAt)}
         </Text>
+        {folder.presetNames.length > 0 && (
+          <Flex wrap="wrap" gap="4px" mt="8px">
+            {folder.presetNames.map(name => (
+              <Text key={name} fontFamily="mono" fontSize="11px" px="7px" py="2px" borderRadius="5px" bg="#f4f4f5" color="#3f3f46">{name}</Text>
+            ))}
+          </Flex>
+        )}
       </Box>
     </Box>
   )
