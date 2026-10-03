@@ -1,0 +1,23 @@
+{
+  "name": "@isntagram/worker",
+  "private": true,
+  "scripts": {
+    "dev": "wrangler dev --config ../wrangler.toml",
+    "build": "wrangler deploy --dry-run --config ../wrangler.toml",
+    "deploy": "wrangler deploy --config ../wrangler.toml --domain isntagram.au --route '*.isntagram.au/*'",
+    "typecheck": "tsc",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "wrangler d1 migrations apply isntagram --local --config ../wrangler.toml"
+  },
+  "dependencies": {
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.13.3",
+    "jose": "^5.10.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260822.1",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.9.3",
+    "wrangler": "^4.125.0"
+  }
+}

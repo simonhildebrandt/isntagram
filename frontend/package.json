@@ -1,0 +1,25 @@
+{
+  "name": "@isntagram/frontend",
+  "private": true,
+  "scripts": {
+    "dev": "node esbuild.config.mjs --watch",
+    "build": "node esbuild.config.mjs",
+    "typecheck": "tsc"
+  },
+  "dependencies": {
+    "@chakra-ui/react": "^2.10.10",
+    "@emotion/react": "^11.13.0",
+    "@emotion/styled": "^11.13.0",
+    "axios": "^1.7.0",
+    "framer-motion": "^11.0.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-router-dom": "^6.30.6"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.0",
+    "@types/react-dom": "^18.3.0",
+    "esbuild": "^0.23.1",
+    "typescript": "^5.9.3"
+  }
+}

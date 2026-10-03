@@ -1,0 +1,82 @@
+# Isntagram
+
+Isntagram is an image hosting site - it's a simple web app that allows uploading zip files and individual images, lists them as folders, and allows the addition of set scaled sizes for individual images, or whole folders. It should be responsive (for management via mobile) and be clean and modern. The intention is to be able to share links to images stored in the system, so they can appear in other web contexts.
+
+# Tech stack
+
+Like Rage2 and 1Gb (adjacent projects), this project uses Cloudflare Workers, Drizzle, Login-With.Link, React Router and Chakra UI, with R2 for image storage and D1 for the database. The layout follows 1Gb: `worker/` and `frontend/`, with esbuild for frontend assets and Drizzle migrations in `worker/migrations`. Login-With.Link is set up the same way as in 1Gb.
+
+Unlike 1Gb, whose frontend is on Vercel, a single Worker serves everything: the frontend's static files (from `frontend/public`, falling back to `index.html` for client-side routes), `/api/*` on `isntagram.au`, and image requests on `{handle}.isntagram.au`. `run_worker_first` is on, so the Worker decides by host before any static file is served.
+
+Production routes are passed to `wrangler deploy` (see `worker/package.json`), not set in `wrangler.toml`. If they're in the config, `wrangler dev` rewrites every request's host to `isntagram.au`, and local subdomains stop working.
+
+# Development
+
+- `npm run dev:frontend` (esbuild watch) and `npm run dev:worker` (`wrangler dev`) in two terminals; the app is at `http://localhost:8787` and image subdomains at `http://{handle}.localhost:8787`.
+- Copy `.dev.vars.example` to `.dev.vars` and fill in `LOGIN_WITH_LINK_SECRET`. Restart `wrangler dev` after changing `.dev.vars`; it isn't reloaded while running. The frontend build reads `LWL_KEY` from the environment (`.envrc`, as in 1Gb).
+- `npm run db:generate` after changing `worker/src/db/schema.ts`, then `npm run db:migrate` to apply locally.
+- `npm run typecheck` checks both packages.
+- To test the API without a real sign-in, sign a JWT with the `.dev.vars` secret: `{ email }` claim, HS256.
+
+# Workflow
+
+- **Build order:** work in slices, each one deployable and testable before starting the next:
+  1. Project setup and sign-in (Login-With.Link, choosing a handle, invite-only check)
+  2. Folders, uploads (images and zips) and serving originals on `{handle}.isntagram.au`
+  3. Size presets, scaled links and cache purging
+  4. Sponsorship: invites, allowances, removing sponsored users
+- **Wrangler:** don't run `wrangler` commands that touch the Cloudflare account (creating D1 databases or R2 buckets, applying remote migrations, setting secrets, deploying). Give Simon the exact commands to run. Local commands like `wrangler dev` and local migrations are fine.
+
+# Uploads and folders
+
+Folders are flat (one level, images only). Uploading a zip creates a new folder named after the archive; single images are uploaded into a folder the user picks or creates. Zips are unpacked in the browser (fflate) and each image is uploaded individually, avoiding Worker request size and memory limits. Accepted formats are JPG, PNG, WebP, GIF and AVIF, up to 50 MB each. Other files are skipped, and any directory structure inside a zip is flattened.
+
+An image can be replaced (new file, same URLs), moved to another folder, or deleted. Deleting a folder deletes its images, after a confirmation warning that their links will stop working. Search (in the top bar) matches image and folder names only.
+
+# Sizes
+
+Only originals are stored in R2 and only originals count against a user's storage quota. Scaled sizes are generated on the fly with the Cloudflare Images binding (`env.IMAGES`), reading the original from R2, and cached at the edge. Animated GIF originals keep their animation, but scaled sizes may not.
+
+Sizes are named presets that each user manages on the Sizes screen. A preset has:
+
+- a name (`thumb`, `medium`, `og`)
+- dimensions: a width only, or width × height
+- a fit: "fit inside" or "crop to fill"
+- an output format: keep the original, WebP or JPEG
+
+Presets are applied to folders or to single images. An image's sizes are its folder's presets plus any applied to the image itself, and folder presets also apply to images uploaded later. A setting chooses the default presets for new folders. New users start with `thumb` and `medium`. The Worker only serves presets that have been applied to an image, so arbitrary sizes can't be requested and each one billed as a transform. Images are never upscaled.
+
+# Sharing
+
+Images are public to anyone with the link and there is no listing or browsing for anonymous visitors. The app runs at `isntagram.au`, and each user's images are served from their own subdomain:
+
+- `{handle}.isntagram.au/{folder}/{file}.{ext}` returns the original
+- `{handle}.isntagram.au/{folder}/{file}@{preset}.{ext}` returns a scaled size (404 unless that preset is applied to the image)
+
+This is a Worker route on `*.isntagram.au/*` (Workers Custom Domains don't support wildcards) plus a proxied wildcard DNS record. Cloudflare's free Universal SSL covers `isntagram.au` and `*.isntagram.au`. The Worker takes the handle from the `Host` header. Serving images from a different origin than the app also keeps uploaded content away from the app's login session.
+
+A handle is chosen at sign-up and can't be changed. It must be a valid DNS label: lowercase a–z, 0–9 and `-`, up to 63 characters, not starting or ending with `-`. Handles that clash with infrastructure (`www`, `app`, `api`, `admin`, `mail`, `static`, and similar) are reserved. A handle is never reused, even after its user is removed. In local dev, use `{handle}.localhost:8787`.
+
+An image's full URL (handle and path) is assigned at upload and stored on the image, and it never changes, even if the image is moved, its folder is renamed, or it changes owner. Links are embedded elsewhere, so they must keep working. Filename clashes within a folder get a numeric suffix (`beach-2.jpg`).
+
+Image requests go through the Worker so it can check presets, and responses carry long cache headers. Deleting an image makes its URLs 404. Editing a preset, replacing a file, or deleting an image or folder purges the affected URLs through the Cloudflare cache purge API. This uses an API token with Zone → Cache Purge permission, stored as the Worker secret `CF_PURGE_TOKEN`.
+
+# Sponsorship
+
+A seed user has a fixed amount of storage space and can sponsor other people with a share of it. This is recursive: anyone can allocate part of their space to someone else. The seed user's email and quota are configured with env vars (`SEED_USER_EMAIL`, `SEED_QUOTA_BYTES`, initially simonhildebrandt@gmail.com and 1GB).
+
+- **Carve-out:** an allocation is subtracted from the sponsor's quota as soon as it is made, including for pending invites. A user's available space is their quota minus their own usage minus what they've allocated to others, so the total can never be oversubscribed.
+- **Invites:** a sponsor enters an email and an allowance. The person gets an email link and signs in with Login-With.Link. Invites can be resent. Each user has exactly one sponsor.
+- **Invite-only:** only the seed user and invited people can sign in; an unknown email gets a "you need an invite" message. Everyone, including the seed user, chooses a handle on first sign-in.
+- **Changing an allowance:** it can't be reduced below what the sponsee has committed (their usage plus their own allocations).
+- **Removing a sponsored user:** the sponsor chooses either to move that user's images into their own library (links keep working, and the images count against the sponsor's space) or to delete them (links stop working). The removed user is signed out and their allowance returns to the sponsor. Anyone the removed user was sponsoring becomes sponsored directly by the remover.
+
+# Design
+
+Mockups are in `design/`; open `design/Isntagram Screens.dc.html` in a browser. `design/Isntagram App.dc.html` contains every screen: folders, folder, image, upload, sizes, people (with the remove dialog) and settings, each in desktop and mobile versions.
+
+We're using layout **1b**: a top nav with centred content on desktop, and a header plus a tab strip on mobile.
+
+Where the mockups disagree with this file, this file wins. In particular, the mockups show stored scaled sizes ("Scaled sizes 0.81 GB", "sizes generated"), but sizes are generated on the fly and don't count against storage. The mockups also use `img.isntagram.app` and show an editable "Public link domain" setting. Links actually go to `{handle}.isntagram.au`, which isn't configurable for now, so Settings shows the user's link domain read-only.
+
+Source: https://claude.ai/design/p/d67f4ef1-6313-4c42-a9bf-78c6243ed84b?file=Isntagram+Screens.dc.html

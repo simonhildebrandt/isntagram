@@ -1,0 +1,3 @@
+# Copy to .dev.vars for local development.
+LOGIN_WITH_LINK_SECRET=
+APP_HOST=localhost:8787
