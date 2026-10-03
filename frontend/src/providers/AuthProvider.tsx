@@ -3,7 +3,7 @@ import axios from 'axios'
 import { TOKEN_KEY } from '../api/client'
 import { getMe, type Me } from '../api/me'
 
-type Status = 'signed-out' | 'loading' | 'not-invited' | 'error' | 'ready'
+type Status = 'signed-out' | 'loading' | 'not-invited' | 'removed' | 'error' | 'ready'
 
 interface AuthContextValue {
   status: Status
@@ -26,8 +26,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStatus('ready')
     } catch (err) {
       setMe(null)
-      if (axios.isAxiosError(err) && err.response?.data?.error === 'not_invited') setStatus('not-invited')
-      else setStatus('error')
+      const code = axios.isAxiosError(err) ? err.response?.data?.error : null
+      setStatus(code === 'not_invited' ? 'not-invited' : code === 'removed' ? 'removed' : 'error')
     }
   }, [])
 

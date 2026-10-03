@@ -6,6 +6,7 @@ import { folderRoutes } from './routes/folders'
 import { imageRoutes } from './routes/images'
 import { searchRoutes } from './routes/search'
 import { presetRoutes } from './routes/presets'
+import { peopleRoutes } from './routes/people'
 import { handleFromHost } from './handles'
 import { serveImage } from './serve'
 import type { AppEnv, Env } from './types'
@@ -13,11 +14,12 @@ import type { AppEnv, Env } from './types'
 const api = new Hono<AppEnv>().basePath('/api')
 api.use('*', authMiddleware)
 api.route('/me', meRoutes)
-for (const path of ['/folders/*', '/images/*', '/search/*', '/presets/*']) api.use(path, requireHandle)
+for (const path of ['/folders/*', '/images/*', '/search/*', '/presets/*', '/people/*']) api.use(path, requireHandle)
 api.route('/folders', folderRoutes)
 api.route('/images', imageRoutes)
 api.route('/search', searchRoutes)
 api.route('/presets', presetRoutes)
+api.route('/people', peopleRoutes)
 
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {

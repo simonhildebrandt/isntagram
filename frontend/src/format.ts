@@ -21,3 +21,5 @@ export const formatDate = (iso: string) =>
   new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 export const plural = (n: number, word: string) => `${n.toLocaleString()} ${word}${n === 1 ? '' : 's'}`
+
+export const peopleCount = (n: number) => (n === 1 ? '1 person' : `${n.toLocaleString()} people`)

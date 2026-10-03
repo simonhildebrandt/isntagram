@@ -35,8 +35,8 @@ presetRoutes.get('/', async (c) => {
   const db = getDb(c.env)
   const rows = await db.select({
     preset: presets,
-    folders: sql<number>`(select count(*) from folder_presets where preset_id = ${presets.id})`,
-    images: sql<number>`(select count(*) from image_presets where preset_id = ${presets.id})`,
+    folders: sql<number>`(select count(*) from folder_presets where folder_presets.preset_id = presets.id)`,
+    images: sql<number>`(select count(*) from image_presets where image_presets.preset_id = presets.id)`,
   }).from(presets).where(eq(presets.user_id, c.get('user').id)).orderBy(presets.width, presets.name)
   return c.json(rows.map(r => presetJson(r.preset, { folders: r.folders, images: r.images })))
 })

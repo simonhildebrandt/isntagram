@@ -70,10 +70,13 @@ Every image request goes through the Worker, which looks the image up in D1 and 
 A seed user has a fixed amount of storage space and can sponsor other people with a share of it. This is recursive: anyone can allocate part of their space to someone else. The seed user's email and quota are configured with env vars (`SEED_USER_EMAIL`, `SEED_QUOTA_BYTES`, initially simonhildebrandt@gmail.com and 1GB).
 
 - **Carve-out:** an allocation is subtracted from the sponsor's quota as soon as it is made, including for pending invites. A user's available space is their quota minus their own usage minus what they've allocated to others, so the total can never be oversubscribed.
-- **Invites:** a sponsor enters an email and an allowance. The person gets an email link and signs in with Login-With.Link. Invites can be resent. Each user has exactly one sponsor.
+- **Invites:** a sponsor enters an email and an allowance. This creates the user's row straight away (`activated_at` stays null until they first sign in), and the People screen gives the sponsor the sign-in link to send them. Isntagram doesn't send email itself: Login-With.Link emails the sign-in link when they use it. Each user has exactly one sponsor.
 - **Invite-only:** only the seed user and invited people can sign in; an unknown email gets a "you need an invite" message. Everyone, including the seed user, chooses a handle on first sign-in.
 - **Changing an allowance:** it can't be reduced below what the sponsee has committed (their usage plus their own allocations).
 - **Removing a sponsored user:** the sponsor chooses either to move that user's images into their own library (links keep working, and the images count against the sponsor's space) or to delete them (links stop working). The removed user is signed out and their allowance returns to the sponsor. Anyone the removed user was sponsoring becomes sponsored directly by the remover.
+  - Moved folders keep their names, with the removed user's handle added if the sponsor already has a folder of that name. Moved images keep their URLs, which still use the removed user's handle.
+  - Their sizes move with them. Where the sponsor already has a size of the same name, theirs is merged into the sponsor's; those links keep working only if the formats match, since the format sets the extension.
+  - The removed user's row is kept with `removed_at` set and a quota of 0, so their handle is never reused and their moved images' links still resolve. They can be invited again later (by anyone), keeping their handle.
 
 # Design
 

@@ -68,8 +68,8 @@ function appliedPreset(db: ReturnType<typeof getDb>, image: Image, name: string)
     where: and(
       eq(presets.user_id, image.user_id),
       eq(presets.name, name),
-      sql`(exists (select 1 from folder_presets where folder_id = ${image.folder_id} and preset_id = ${presets.id})
-        or exists (select 1 from image_presets where image_id = ${image.id} and preset_id = ${presets.id}))`,
+      sql`(exists (select 1 from folder_presets where folder_presets.folder_id = ${image.folder_id} and folder_presets.preset_id = presets.id)
+        or exists (select 1 from image_presets where image_presets.image_id = ${image.id} and image_presets.preset_id = presets.id))`,
     ),
   })
 }

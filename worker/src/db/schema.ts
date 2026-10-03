@@ -9,6 +9,11 @@ export const users = sqliteTable('users', {
   sponsor_id:  integer('sponsor_id').references((): AnySQLiteColumn => users.id),
   quota_bytes: integer('quota_bytes').notNull(),
   created_at:  text('created_at').notNull(),
+  // Null until an invited user first signs in.
+  activated_at: text('activated_at'),
+  // Removed users can't sign in. The row stays so their handle is never reused
+  // and links to images moved to their sponsor keep working.
+  removed_at:  text('removed_at'),
 })
 
 export const folders = sqliteTable('folders', {

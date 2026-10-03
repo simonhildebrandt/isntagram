@@ -10,8 +10,8 @@ const ImagePage      = lazy(() => import('./pages/ImagePage'))
 const UploadPage     = lazy(() => import('./pages/UploadPage'))
 const SearchPage     = lazy(() => import('./pages/SearchPage'))
 const SizesPage      = lazy(() => import('./pages/SizesPage'))
+const PeoplePage     = lazy(() => import('./pages/PeoplePage'))
 const SettingsPage   = lazy(() => import('./pages/SettingsPage'))
-const ComingSoonPage = lazy(() => import('./pages/ComingSoonPage'))
 const LoginPage      = lazy(() => import('./pages/LoginPage'))
 const WelcomePage    = lazy(() => import('./pages/WelcomePage'))
 
@@ -26,7 +26,7 @@ export const router = createBrowserRouter([
   { path: '/upload',   element: <Shelled><UploadPage /></Shelled> },
   { path: '/search',   element: <Shelled><SearchPage /></Shelled> },
   { path: '/sizes',    element: <Shelled><SizesPage /></Shelled> },
-  { path: '/people',   element: <Shelled><ComingSoonPage title="Sponsored users" /></Shelled> },
+  { path: '/people',   element: <Shelled><PeoplePage /></Shelled> },
   { path: '/settings', element: <Shelled><SettingsPage /></Shelled> },
   { path: '/login',    element: <Suspense fallback={null}><LoginPage /></Suspense> },
   { path: '/welcome',  element: <RequireUser allowNoHandle><Suspense fallback={null}><WelcomePage /></Suspense></RequireUser> },

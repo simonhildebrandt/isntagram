@@ -12,7 +12,9 @@ export const meRoutes = new Hono<AppEnv>()
 
 meRoutes.get('/', async (c) => {
   const user = c.get('user')
+  const sponsor = user.sponsor_id ? await getDb(c.env).query.users.findFirst({ where: eq(users.id, user.sponsor_id) }) : undefined
   return c.json({
+    sponsorEmail: sponsor?.email ?? null,
     email: user.email,
     handle: user.handle,
     ...await getUsage(getDb(c.env), user),

@@ -32,8 +32,14 @@ export const authMiddleware = createMiddleware<AppEnv>(async (c, next) => {
     user = await db.query.users.findFirst({ where: eq(users.email, email) })
   }
 
-  // Sign-in is invite-only: anyone without a user row is turned away.
+  // Sign-in is invite-only: anyone without a user row, or whose sponsor removed them, is turned away.
   if (!user) return c.json({ error: 'not_invited' }, 403)
+  if (user.removed_at) return c.json({ error: 'removed' }, 403)
+  if (!user.activated_at) {
+    const activated_at = new Date().toISOString()
+    await db.update(users).set({ activated_at }).where(eq(users.id, user.id))
+    user = { ...user, activated_at }
+  }
 
   c.set('user', user)
   await next()

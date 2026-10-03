@@ -28,7 +28,7 @@ export default function SettingsPage() {
     <VStack align="stretch" spacing={5}>
       <Heading size="lg">Settings</Heading>
       <Box bg="white" border="1px solid #e6e6ea" borderRadius="12px">
-        <Row title="Account" detail={`Signed in as ${me.email} via login-with.link`}>
+        <Row title="Account" detail={`Signed in as ${me.email} via login-with.link${me.sponsorEmail ? ` · sponsored by ${me.sponsorEmail}` : ''}`}>
           <Button variant="outline" colorScheme="gray" onClick={logout}>Sign out</Button>
         </Row>
         <Row title="Public link domain" detail="Used for every shared image URL">

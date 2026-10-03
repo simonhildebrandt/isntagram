@@ -1,6 +1,7 @@
 import { api } from './client'
 
 export interface Me {
+  sponsorEmail: string | null
   email: string
   handle: string | null
   quotaBytes: number

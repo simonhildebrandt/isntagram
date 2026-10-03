@@ -61,8 +61,8 @@ export async function createStarterPresets(db: Db, userId: number) {
 export async function presetsForImage(db: Db, image: Pick<Image, 'id' | 'folder_id' | 'user_id'>) {
   const rows = await db.select({
     preset: presets,
-    fromFolder: sql<number>`exists (select 1 from folder_presets where folder_id = ${image.folder_id} and preset_id = ${presets.id})`,
-    fromImage: sql<number>`exists (select 1 from image_presets where image_id = ${image.id} and preset_id = ${presets.id})`,
+    fromFolder: sql<number>`exists (select 1 from folder_presets where folder_presets.folder_id = ${image.folder_id} and folder_presets.preset_id = presets.id)`,
+    fromImage: sql<number>`exists (select 1 from image_presets where image_presets.image_id = ${image.id} and image_presets.preset_id = presets.id)`,
   }).from(presets).where(eq(presets.user_id, image.user_id)).orderBy(presets.width)
   return rows
     .filter(r => r.fromFolder || r.fromImage)

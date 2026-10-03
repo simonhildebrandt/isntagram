@@ -17,7 +17,7 @@ export function slugify(name: string): string {
 }
 
 // The first of `base`, `base-2`, `base-3`… not in `taken`.
-function firstFree(base: string, taken: Set<string>): string {
+export function firstFree(base: string, taken: Set<string>): string {
   if (!taken.has(base)) return base
   for (let n = 2; ; n++) if (!taken.has(`${base}-${n}`)) return `${base}-${n}`
 }

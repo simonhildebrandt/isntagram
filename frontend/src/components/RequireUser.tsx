@@ -12,12 +12,16 @@ export function RequireUser({ children, allowNoHandle = false }: { children: Rea
   if (status === 'signed-out') return <Navigate to="/login" replace state={{ from: location.pathname }} />
   if (status === 'loading') return <Center minH="100vh"><Spinner color="brand.500" /></Center>
 
-  if (status === 'not-invited') {
+  if (status === 'not-invited' || status === 'removed') {
     return (
       <CenteredCard>
         <VStack align="stretch" spacing={4}>
-          <Text fontSize="18px" fontWeight={650}>You need an invite</Text>
-          <Text color="#52525b">Isntagram is invite-only. Ask someone who already uses it to sponsor you, then sign in again.</Text>
+          <Text fontSize="18px" fontWeight={650}>{status === 'removed' ? 'Your access has ended' : 'You need an invite'}</Text>
+          <Text color="#52525b">
+            {status === 'removed'
+              ? 'The person who sponsored your space has removed you. Ask them, or someone else who uses Isntagram, to invite you again.'
+              : 'Isntagram is invite-only. Ask someone who already uses it to sponsor you, then sign in again.'}
+          </Text>
           <Button variant="outline" onClick={logout}>Use a different email</Button>
         </VStack>
       </CenteredCard>
