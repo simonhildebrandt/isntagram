@@ -3,6 +3,7 @@ import type { User } from './db/schema'
 export interface Env {
   DB: D1Database
   ASSETS: Fetcher
+  BUCKET: R2Bucket
   APP_HOST: string
   SEED_USER_EMAIL: string
   SEED_QUOTA_BYTES: string

@@ -8,6 +8,8 @@ Like Rage2 and 1Gb (adjacent projects), this project uses Cloudflare Workers, Dr
 
 Unlike 1Gb, whose frontend is on Vercel, a single Worker serves everything: the frontend's static files (from `frontend/public`, falling back to `index.html` for client-side routes), `/api/*` on `isntagram.au`, and image requests on `{handle}.isntagram.au`. `run_worker_first` is on, so the Worker decides by host before any static file is served.
 
+Originals are stored in the R2 bucket `isntagram-originals` (binding `BUCKET`) under random keys (`originals/{uuid}`), so storage never depends on handles or paths. Uploads are sent as the raw request body and streamed into R2. The Worker checks the file's first bytes to confirm it's one of the accepted image types and ignores the type the browser claims. The client reads image dimensions with `createImageBitmap` and sends them with the upload.
+
 Production routes are passed to `wrangler deploy` (see `worker/package.json`), not set in `wrangler.toml`. If they're in the config, `wrangler dev` rewrites every request's host to `isntagram.au`, and local subdomains stop working.
 
 # Development
@@ -16,6 +18,7 @@ Production routes are passed to `wrangler deploy` (see `worker/package.json`), n
 - Copy `.dev.vars.example` to `.dev.vars` and fill in `LOGIN_WITH_LINK_SECRET`. Restart `wrangler dev` after changing `.dev.vars`; it isn't reloaded while running. The frontend build reads `LWL_KEY` from the environment (`.envrc`, as in 1Gb).
 - `npm run db:generate` after changing `worker/src/db/schema.ts`, then `npm run db:migrate` to apply locally.
 - `npm run typecheck` checks both packages.
+- In the app, image previews add `?v={updatedAt}` to the URL (the Worker ignores query strings) so a replaced file isn't hidden by the browser cache. Folder covers and grids load originals until slice 3 adds a thumbnail preset.
 - To test the API without a real sign-in, sign a JWT with the `.dev.vars` secret: `{ email }` claim, HS256.
 
 # Workflow
@@ -31,7 +34,7 @@ Production routes are passed to `wrangler deploy` (see `worker/package.json`), n
 
 Folders are flat (one level, images only). Uploading a zip creates a new folder named after the archive; single images are uploaded into a folder the user picks or creates. Zips are unpacked in the browser (fflate) and each image is uploaded individually, avoiding Worker request size and memory limits. Accepted formats are JPG, PNG, WebP, GIF and AVIF, up to 50 MB each. Other files are skipped, and any directory structure inside a zip is flattened.
 
-An image can be replaced (new file, same URLs), moved to another folder, or deleted. Deleting a folder deletes its images, after a confirmation warning that their links will stop working. Search (in the top bar) matches image and folder names only.
+An image can be replaced (new file, same URLs, including the original extension), moved to another folder, or deleted. Renaming a folder changes the path used for images uploaded afterwards; existing images keep their paths. Uploads run one at a time in a background queue (`UploadProvider`) that keeps going while you move around the app. Deleting a folder deletes its images, after a confirmation warning that their links will stop working. Search (in the top bar) matches image and folder names only.
 
 # Sizes
 

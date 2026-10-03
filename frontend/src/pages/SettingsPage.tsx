@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Heading, Text, VStack } from '@chakra-ui/react'
+import { Box, Button, Flex, Heading, HStack, Text, VStack } from '@chakra-ui/react'
 import type { ReactNode } from 'react'
 import { useAuth, useMe } from '../providers/AuthProvider'
 import { formatBytes } from '../format'
@@ -31,9 +31,18 @@ export default function SettingsPage() {
             {me.linkHost}
           </Text>
         </Row>
-        <Row title="Storage" detail="Your total allowance">
+        <Row
+          title="Storage"
+          detail={`${formatBytes(me.usedBytes)} used${me.allocatedBytes ? ` · ${formatBytes(me.allocatedBytes)} given to people you sponsor` : ''} · ${formatBytes(Math.max(0, me.availableBytes))} free`}
+        >
           <Text fontWeight={600}>{formatBytes(me.quotaBytes)}</Text>
         </Row>
+        <Box px="18px" pb={4}>
+          <HStack h="10px" borderRadius="5px" bg="#f0f0f2" spacing="2px" overflow="hidden">
+            <Box h="100%" w={`${(me.usedBytes / me.quotaBytes) * 100}%`} bg="brand.500" />
+            <Box h="100%" w={`${(me.allocatedBytes / me.quotaBytes) * 100}%`} bg="brand.300" />
+          </HStack>
+        </Box>
       </Box>
     </VStack>
   )

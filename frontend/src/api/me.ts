@@ -4,6 +4,9 @@ export interface Me {
   email: string
   handle: string | null
   quotaBytes: number
+  usedBytes: number
+  allocatedBytes: number
+  availableBytes: number
   linkHost: string | null
 }
 

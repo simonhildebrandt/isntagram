@@ -3,16 +3,17 @@ import { eq } from 'drizzle-orm'
 import { getDb } from '../db/client'
 import { users } from '../db/schema'
 import { handleProblem } from '../handles'
+import { getUsage } from '../quota'
 import type { AppEnv } from '../types'
 
 export const meRoutes = new Hono<AppEnv>()
 
-meRoutes.get('/', (c) => {
+meRoutes.get('/', async (c) => {
   const user = c.get('user')
   return c.json({
     email: user.email,
     handle: user.handle,
-    quotaBytes: user.quota_bytes,
+    ...await getUsage(getDb(c.env), user),
     linkHost: user.handle ? `${user.handle}.${c.env.APP_HOST}` : null,
   })
 })
