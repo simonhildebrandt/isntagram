@@ -6,7 +6,6 @@ Indie image hosting, on Cloudflare Workers. See `CLAUDE.md` for the spec and dev
 ```sh
 npm install
 cp .dev.vars.example .dev.vars   # add LOGIN_WITH_LINK_SECRET
-export LWL_KEY=...               # Login-With.Link app key, used by the frontend build
 npm run db:migrate
 npm run dev:frontend             # terminal 1
 npm run dev:worker               # terminal 2 → http://localhost:8787
@@ -43,7 +42,7 @@ npx wrangler secret put LOGIN_WITH_LINK_SECRET
 
 ```sh
 npx wrangler d1 migrations apply isntagram --remote   # when there are new migrations
-LWL_KEY=... npm run deploy                            # builds the frontend, deploys, attaches isntagram.au and *.isntagram.au/*
+npm run deploy                                        # builds the frontend, deploys, attaches isntagram.au and *.isntagram.au/*
 ```
 
 Check it:

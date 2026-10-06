@@ -30,7 +30,7 @@ binding = "IMAGES"
 [[d1_databases]]
 binding        = "DB"
 database_name  = "isntagram"
-database_id    = "00000000-0000-0000-0000-000000000000" # replace with the id from `wrangler d1 create isntagram`
+database_id    = "b752bd4b-8cce-41a8-91ca-8e4ee6e035e2"
 migrations_dir = "worker/migrations"
 
 [observability.logs]

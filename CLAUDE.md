@@ -15,7 +15,7 @@ Production routes are passed to `wrangler deploy` (see `worker/package.json`), n
 # Development
 
 - `npm run dev:frontend` (esbuild watch) and `npm run dev:worker` (`wrangler dev`) in two terminals; the app is at `http://localhost:8787` and image subdomains at `http://{handle}.localhost:8787`.
-- Copy `.dev.vars.example` to `.dev.vars` and fill in `LOGIN_WITH_LINK_SECRET`. Restart `wrangler dev` after changing `.dev.vars`; it isn't reloaded while running. The frontend build reads `LWL_KEY` from the environment (`.envrc`, as in 1Gb).
+- Copy `.dev.vars.example` to `.dev.vars` and fill in `LOGIN_WITH_LINK_SECRET`. Restart `wrangler dev` after changing `.dev.vars`; it isn't reloaded while running. Both Login-With.Link app keys are committed in `frontend/esbuild.config.mjs` (they're public: each appears in every sign-in URL). The watch build (`dev:frontend`) uses the development key; one-off builds, including `npm run deploy`, use the production key.
 - `npm run db:generate` after changing `worker/src/db/schema.ts`, then `npm run db:migrate` to apply locally.
 - `npm run typecheck` checks both packages.
 - In the app, image previews add `?v={updatedAt}` to the URL (the Worker ignores query strings) so a replaced file isn't hidden by the browser cache.
